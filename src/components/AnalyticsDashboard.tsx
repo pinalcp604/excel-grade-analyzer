@@ -13,6 +13,7 @@ interface StudentRecord {
 
 interface AnalyticsDashboardProps {
   data: StudentRecord[];
+  selectedProgram?: string | null;
 }
 
 const GRADE_COLORS = {
@@ -22,15 +23,20 @@ const GRADE_COLORS = {
   'D+': '#ef4444', 'D': '#dc2626', 'F': '#b91c1c'
 };
 
-export const AnalyticsDashboard = ({ data }: AnalyticsDashboardProps) => {
+export const AnalyticsDashboard = ({ data, selectedProgram }: AnalyticsDashboardProps) => {
   const analytics = useMemo(() => {
     if (data.length === 0) return null;
 
-    // Programme-wise grade distribution
+    // Filter data by selected program if specified
+    const filteredData = selectedProgram 
+      ? data.filter(record => record.courseDesc === selectedProgram)
+      : data;
+
+    if (filteredData.length === 0) return null;
     const programmeGrades: Record<string, Record<string, number>> = {};
     const overallGrades: Record<string, number> = {};
     
-    data.forEach(record => {
+    filteredData.forEach(record => {
       const programme = record.courseDesc;
       const grade = record.cuorResultCode;
       
@@ -60,10 +66,10 @@ export const AnalyticsDashboard = ({ data }: AnalyticsDashboardProps) => {
     });
 
     // Performance metrics
-    const totalStudents = data.length;
-    const uniqueProgrammes = Object.keys(programmeGrades).length;
+    const totalStudents = filteredData.length;
+    const uniqueProgrammes = selectedProgram ? 1 : Object.keys(programmeGrades).length;
     const passGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-'];
-    const passCount = data.filter(record => passGrades.includes(record.cuorResultCode)).length;
+    const passCount = filteredData.filter(record => passGrades.includes(record.cuorResultCode)).length;
     const passRate = ((passCount / totalStudents) * 100).toFixed(1);
 
     return {
@@ -71,9 +77,10 @@ export const AnalyticsDashboard = ({ data }: AnalyticsDashboardProps) => {
       gradeDistributionData,
       totalStudents,
       uniqueProgrammes,
-      passRate
+      passRate,
+      selectedProgram
     };
-  }, [data]);
+  }, [data, selectedProgram]);
 
   if (!analytics) {
     return (
@@ -89,11 +96,15 @@ export const AnalyticsDashboard = ({ data }: AnalyticsDashboardProps) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6 bg-gradient-primary text-primary-foreground">
           <div className="text-2xl font-bold">{analytics.totalStudents}</div>
-          <div className="text-sm opacity-90">Total Records</div>
+          <div className="text-sm opacity-90">
+            {analytics.selectedProgram ? 'Records in Programme' : 'Total Records'}
+          </div>
         </Card>
         <Card className="p-6 bg-gradient-secondary">
           <div className="text-2xl font-bold text-foreground">{analytics.uniqueProgrammes}</div>
-          <div className="text-sm text-muted-foreground">Programmes</div>
+          <div className="text-sm text-muted-foreground">
+            {analytics.selectedProgram ? 'Selected Programme' : 'Programmes'}
+          </div>
         </Card>
         <Card className="p-6 border-2 border-success">
           <div className="text-2xl font-bold text-success">{analytics.passRate}%</div>
@@ -103,9 +114,10 @@ export const AnalyticsDashboard = ({ data }: AnalyticsDashboardProps) => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Programme-wise Performance */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Programme-wise Grade Distribution</h3>
+        {/* Programme-wise Performance - Hide if single program selected */}
+        {!analytics.selectedProgram && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Programme-wise Grade Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analytics.programmeChartData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -137,10 +149,13 @@ export const AnalyticsDashboard = ({ data }: AnalyticsDashboardProps) => {
             </BarChart>
           </ResponsiveContainer>
         </Card>
+        )}
 
         {/* Overall Grade Distribution */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Overall Grade Distribution</h3>
+        <Card className={`p-6 ${!analytics.selectedProgram ? '' : 'lg:col-span-2'}`}>
+          <h3 className="text-lg font-semibold mb-4">
+            {analytics.selectedProgram ? `Grade Distribution - ${analytics.selectedProgram}` : 'Overall Grade Distribution'}
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie

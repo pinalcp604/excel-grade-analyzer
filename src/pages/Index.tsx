@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx';
 import { FileUpload } from '@/components/FileUpload';
 import { DataTable } from '@/components/DataTable';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
+import { ProgramSelector } from '@/components/ProgramSelector';
+import { ProgramAnalytics } from '@/components/ProgramAnalytics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { BarChart3, FileSpreadsheet, Upload } from 'lucide-react';
@@ -19,6 +21,7 @@ interface StudentRecord {
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [studentData, setStudentData] = useState<StudentRecord[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
@@ -72,6 +75,7 @@ const Index = () => {
   const handleClearFile = useCallback(() => {
     setSelectedFile(null);
     setStudentData([]);
+    setSelectedProgram(null);
   }, []);
 
   return (
@@ -107,14 +111,29 @@ const Index = () => {
             />
           </section>
 
+          {/* Program Selection Section */}
+          {studentData.length > 0 && (
+            <section>
+              <ProgramSelector
+                data={studentData}
+                selectedProgram={selectedProgram}
+                onProgramSelect={setSelectedProgram}
+              />
+            </section>
+          )}
+
           {/* Data Display Section */}
           {studentData.length > 0 && (
             <section>
               <Tabs defaultValue="analytics" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 max-w-md">
+                <TabsList className="grid w-full grid-cols-3 max-w-lg">
                   <TabsTrigger value="analytics" className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4" />
-                    Analytics
+                    {selectedProgram ? 'Programme' : 'Overview'}
+                  </TabsTrigger>
+                  <TabsTrigger value="detailed" className="flex items-center gap-2" disabled={!selectedProgram}>
+                    <BarChart3 className="h-4 w-4" />
+                    Detailed
                   </TabsTrigger>
                   <TabsTrigger value="data" className="flex items-center gap-2">
                     <FileSpreadsheet className="h-4 w-4" />
@@ -123,11 +142,21 @@ const Index = () => {
                 </TabsList>
                 
                 <TabsContent value="analytics" className="mt-6">
-                  <AnalyticsDashboard data={studentData} />
+                  <AnalyticsDashboard data={studentData} selectedProgram={selectedProgram} />
+                </TabsContent>
+                
+                <TabsContent value="detailed" className="mt-6">
+                  {selectedProgram ? (
+                    <ProgramAnalytics data={studentData} programName={selectedProgram} />
+                  ) : (
+                    <div className="text-center p-8 text-muted-foreground">
+                      Select a programme to view detailed analysis
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="data" className="mt-6">
-                  <DataTable data={studentData} />
+                  <DataTable data={selectedProgram ? studentData.filter(record => record.courseDesc === selectedProgram) : studentData} />
                 </TabsContent>
               </Tabs>
             </section>
