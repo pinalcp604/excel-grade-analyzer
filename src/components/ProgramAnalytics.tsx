@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { SubjectSelector } from '@/components/SubjectSelector';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, BookOpen, Award } from 'lucide-react';
+import { TrendingUp, Users, BookOpen, Award, Download } from 'lucide-react';
+import { downloadAnalysisReport } from '@/lib/downloadUtils';
 
 interface StudentRecord {
   courseDesc: string;
@@ -33,14 +36,23 @@ const ETHNICITY_COLORS = [
 ];
 
 export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) => {
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  
   const analytics = useMemo(() => {
     const programData = data.filter(record => record.courseDesc === programName);
     
     if (programData.length === 0) return null;
 
-    // Grade distribution
+    // Filter data by subject if selected
+    const analysisData = selectedSubject 
+      ? programData.filter(record => 
+          (record.unitOfferDescription || record.unitCode) === selectedSubject
+        )
+      : programData;
+
+    // Grade distribution (use filtered data if subject selected)
     const gradeDistribution: Record<string, number> = {};
-    programData.forEach(record => {
+    analysisData.forEach(record => {
       const grade = record.cuorResultCode;
       gradeDistribution[grade] = (gradeDistribution[grade] || 0) + 1;
     });
@@ -49,7 +61,7 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
       .map(([grade, count]) => ({
         grade,
         count,
-        percentage: ((count / programData.length) * 100).toFixed(1),
+        percentage: ((count / analysisData.length) * 100).toFixed(1),
         color: GRADE_COLORS[grade as keyof typeof GRADE_COLORS] || '#6b7280'
       }))
       .sort((a, b) => {
@@ -115,18 +127,18 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
         }))
       : null;
 
-    // Performance metrics
+    // Performance metrics (use filtered data if subject selected)
     const passGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-'];
     const excellentGrades = ['A+', 'A', 'A-'];
     const failGrades = ['F'];
     
-    const passCount = programData.filter(record => passGrades.includes(record.cuorResultCode)).length;
-    const excellentCount = programData.filter(record => excellentGrades.includes(record.cuorResultCode)).length;
-    const failCount = programData.filter(record => failGrades.includes(record.cuorResultCode)).length;
+    const passCount = analysisData.filter(record => passGrades.includes(record.cuorResultCode)).length;
+    const excellentCount = analysisData.filter(record => excellentGrades.includes(record.cuorResultCode)).length;
+    const failCount = analysisData.filter(record => failGrades.includes(record.cuorResultCode)).length;
     
-    const passRate = ((passCount / programData.length) * 100).toFixed(1);
-    const excellenceRate = ((excellentCount / programData.length) * 100).toFixed(1);
-    const failureRate = ((failCount / programData.length) * 100).toFixed(1);
+    const passRate = ((passCount / analysisData.length) * 100).toFixed(1);
+    const excellenceRate = ((excellentCount / analysisData.length) * 100).toFixed(1);
+    const failureRate = ((failCount / analysisData.length) * 100).toFixed(1);
 
     // Unique students count
     const uniqueStudents = new Set(
@@ -139,13 +151,15 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
       subjectChartData,
       ethnicityChartData,
       hasEthnicityData,
-      totalRecords: programData.length,
+      totalRecords: selectedSubject ? analysisData.length : programData.length,
       uniqueStudents,
       passRate,
       excellenceRate,
-      failureRate
+      failureRate,
+      selectedSubject,
+      isSubjectSpecific: !!selectedSubject
     };
-  }, [data, programName]);
+  }, [data, programName, selectedSubject]);
 
   if (!analytics) {
     return (
@@ -159,9 +173,29 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
     <div className="space-y-6">
       {/* Programme Header */}
       <Card className="p-6 bg-gradient-primary text-primary-foreground">
-        <h2 className="text-2xl font-bold mb-2">{programName}</h2>
-        <p className="opacity-90">Detailed Performance Analysis</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">{programName}</h2>
+            <p className="opacity-90">Detailed Performance Analysis</p>
+          </div>
+          <Button 
+            variant="secondary"
+            onClick={() => downloadAnalysisReport(data, programName, analytics)}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download Report
+          </Button>
+        </div>
       </Card>
+
+      {/* Subject Selector */}
+      <SubjectSelector 
+        data={data}
+        programName={programName}
+        selectedSubject={selectedSubject}
+        onSubjectSelect={setSelectedSubject}
+      />
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -210,7 +244,9 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Grade Distribution */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Grade Distribution</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            {analytics.selectedSubject ? `Grade Distribution - ${analytics.selectedSubject}` : 'Programme Grade Distribution'}
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analytics.gradeChartData}>
               <CartesianGrid strokeDasharray="3 3" />

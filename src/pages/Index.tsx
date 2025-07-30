@@ -88,7 +88,7 @@ const Index = () => {
               <BarChart3 className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Student Result Analysis</h1>
+              <h1 className="text-2xl font-bold">Result Analysis for APC</h1>
               <p className="text-muted-foreground">Upload Excel files and analyze grade performance by programme</p>
             </div>
           </div>

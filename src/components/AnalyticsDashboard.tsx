@@ -71,6 +71,12 @@ export const AnalyticsDashboard = ({ data, selectedProgram }: AnalyticsDashboard
     const passGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-'];
     const passCount = filteredData.filter(record => passGrades.includes(record.cuorResultCode)).length;
     const passRate = ((passCount / totalStudents) * 100).toFixed(1);
+    
+    // Calculate total EFTS
+    const totalEfts = filteredData.reduce((sum, record) => {
+      const efts = parseFloat(record['cuor efts factor'] || record['Cuor Efts Factor'] || record['CUOR EFTS FACTOR'] || 0);
+      return sum + (isNaN(efts) ? 0 : efts);
+    }, 0);
 
     return {
       programmeChartData,
@@ -78,7 +84,8 @@ export const AnalyticsDashboard = ({ data, selectedProgram }: AnalyticsDashboard
       totalStudents,
       uniqueProgrammes,
       passRate,
-      selectedProgram
+      selectedProgram,
+      totalEfts: totalEfts.toFixed(2)
     };
   }, [data, selectedProgram]);
 
@@ -101,10 +108,8 @@ export const AnalyticsDashboard = ({ data, selectedProgram }: AnalyticsDashboard
           </div>
         </Card>
         <Card className="p-6 bg-gradient-secondary">
-          <div className="text-2xl font-bold text-foreground">{analytics.uniqueProgrammes}</div>
-          <div className="text-sm text-muted-foreground">
-            {analytics.selectedProgram ? 'Selected Programme' : 'Programmes'}
-          </div>
+          <div className="text-2xl font-bold text-foreground">{analytics.totalEfts}</div>
+          <div className="text-sm text-muted-foreground">Total EFTS</div>
         </Card>
         <Card className="p-6 border-2 border-success">
           <div className="text-2xl font-bold text-success">{analytics.passRate}%</div>
