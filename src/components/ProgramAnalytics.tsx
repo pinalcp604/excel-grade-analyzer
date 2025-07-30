@@ -28,7 +28,8 @@ const GRADE_COLORS = {
   'A+': '#10b981', 'A': '#059669', 'A-': '#047857',
   'B+': '#3b82f6', 'B': '#2563eb', 'B-': '#1d4ed8',
   'C+': '#f59e0b', 'C': '#d97706', 'C-': '#b45309',
-  'D+': '#ef4444', 'D': '#dc2626', 'F': '#b91c1c'
+  'D+': '#ef4444', 'D': '#dc2626', 'F': '#b91c1c',
+  'W': '#9333ea', 'Blank': '#6b7280'
 };
 
 const ETHNICITY_COLORS = [
@@ -54,7 +55,11 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
     const gradeDistribution: Record<string, number> = {};
     analysisData.forEach(record => {
       const grade = record.cuorResultCode;
-      gradeDistribution[grade] = (gradeDistribution[grade] || 0) + 1;
+      if (grade && grade.toString().trim()) {
+        gradeDistribution[grade] = (gradeDistribution[grade] || 0) + 1;
+      } else {
+        gradeDistribution['Blank'] = (gradeDistribution['Blank'] || 0) + 1;
+      }
     });
 
     const gradeChartData = Object.entries(gradeDistribution)
@@ -65,7 +70,7 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
         color: GRADE_COLORS[grade as keyof typeof GRADE_COLORS] || '#6b7280'
       }))
       .sort((a, b) => {
-        const gradeOrder = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'F'];
+        const gradeOrder = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'F', 'W', 'Blank'];
         return gradeOrder.indexOf(a.grade) - gradeOrder.indexOf(b.grade);
       });
 
@@ -101,15 +106,12 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
       .sort((a, b) => b.totalStudents - a.totalStudents)
       .slice(0, 10); // Top 10 subjects by enrollment
 
-    // Ethnicity analysis (if data available)
+    // Ethnicity analysis using "nz ethnicity 1" column
     const ethnicityDistribution: Record<string, number> = {};
     let hasEthnicityData = false;
     
     programData.forEach(record => {
-      // Check multiple possible ethnicity column names
-      const ethnicity = record.ethnicity || record.Ethnicity || record.ETHNICITY || 
-                       record['ethnic group'] || record['Ethnic Group'] || record['ETHNIC GROUP'] ||
-                       record.race || record.Race || record.RACE;
+      const ethnicity = record['nz ethnicity 1'] || record['NZ Ethnicity 1'] || record['NZ ETHNICITY 1'];
       
       if (ethnicity && ethnicity.toString().trim()) {
         hasEthnicityData = true;
@@ -131,10 +133,13 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
     const passGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-'];
     const excellentGrades = ['A+', 'A', 'A-'];
     const failGrades = ['F'];
+    const withdrawGrades = ['W'];
     
-    const passCount = analysisData.filter(record => passGrades.includes(record.cuorResultCode)).length;
-    const excellentCount = analysisData.filter(record => excellentGrades.includes(record.cuorResultCode)).length;
-    const failCount = analysisData.filter(record => failGrades.includes(record.cuorResultCode)).length;
+    const passCount = analysisData.filter(record => record.cuorResultCode && passGrades.includes(record.cuorResultCode)).length;
+    const excellentCount = analysisData.filter(record => record.cuorResultCode && excellentGrades.includes(record.cuorResultCode)).length;
+    const failCount = analysisData.filter(record => record.cuorResultCode && failGrades.includes(record.cuorResultCode)).length;
+    const withdrawCount = analysisData.filter(record => record.cuorResultCode && withdrawGrades.includes(record.cuorResultCode)).length;
+    const blankCount = analysisData.filter(record => !record.cuorResultCode || !record.cuorResultCode.toString().trim()).length;
     
     const passRate = ((passCount / analysisData.length) * 100).toFixed(1);
     const excellenceRate = ((excellentCount / analysisData.length) * 100).toFixed(1);
@@ -156,6 +161,10 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
       passRate,
       excellenceRate,
       failureRate,
+      passCount,
+      failCount,
+      withdrawCount,
+      blankCount,
       selectedSubject,
       isSubjectSpecific: !!selectedSubject
     };
@@ -339,39 +348,6 @@ export const ProgramAnalytics = ({ data, programName }: ProgramAnalyticsProps) =
         </Card>
       </div>
 
-      {/* Subject Performance */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Subject-wise Performance (Top 10 by Enrollment)</h3>
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={analytics.subjectChartData} layout="horizontal">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis 
-              type="category" 
-              dataKey="subject" 
-              width={150}
-              fontSize={12}
-            />
-            <Tooltip 
-              formatter={(value, name) => [value, `${name} Grade`]}
-              labelFormatter={(label) => {
-                const fullSubject = analytics.subjectChartData.find(
-                  item => item.subject === label
-                )?.fullSubject;
-                return fullSubject || label;
-              }}
-            />
-            {Object.keys(GRADE_COLORS).map(grade => (
-              <Bar 
-                key={grade}
-                dataKey={grade} 
-                stackId="grades"
-                fill={GRADE_COLORS[grade as keyof typeof GRADE_COLORS]}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
     </div>
   );
 };
